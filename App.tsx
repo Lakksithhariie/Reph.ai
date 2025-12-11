@@ -1,9 +1,16 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { humanizeText } from './services/geminiService';
-import { TextArea } from './components/TextArea';
-import { Button } from './components/Button';
+import Groq from "groq-sdk";
+// CORRECTED IMPORTS:
+import { TextArea } from "./src/components/TextArea";
+import { Button } from "./src/components/Button";
 
 const TONES = ['Standard', 'Casual', 'Professional', 'Witty', 'Empathetic', 'Assertive'];
+
+// Initialize Groq SDK (Client-side)
+const groq = new Groq({
+  apiKey: process.env.GROQ_API_KEY, 
+  dangerouslyAllowBrowser: true 
+});
 
 export default function App() {
   const [inputText, setInputText] = useState('');
@@ -25,11 +32,38 @@ export default function App() {
 
     setIsLoading(true);
     setError(null);
+    
     try {
-      const result = await humanizeText(inputText, selectedTone);
+      const prompt = `
+        You are an expert human writer and editor. Your task is to rewrite the provided text to sound completely natural, human, and engaging, removing all traces of robotic or AI-generated patterns.
+        
+        Target Tone: ${selectedTone}
+        
+        Strict Instructions:
+        1. Maintain the original meaning but drastically improve flow, vocabulary, and sentence structure.
+        2. Avoid repetitive sentence starts and stiff transitions.
+        3. Do not output explanations, preambles, or conversational filler (like "Here is the text"). 
+        4. Output ONLY the rewritten content.
+        
+        Original Text:
+        ${inputText}
+      `;
+
+      const completion = await groq.chat.completions.create({
+        model: "openai/gpt-oss-120b",
+        messages: [
+          {
+            role: "user",
+            content: prompt,
+          },
+        ],
+      });
+
+      const result = completion.choices[0]?.message?.content || "No output generated.";
       setOutputText(result);
-    } catch (err) {
-      setError("Error: Connection failure or API Key missing.");
+
+    } catch (err: any) {
+      setError("Error: " + (err.message || "Connection failure or API Key missing."));
       console.error(err);
     } finally {
       setIsLoading(false);
@@ -68,7 +102,7 @@ export default function App() {
             <div className="w-4 h-4 bg-white rounded-sm relative overflow-hidden">
                 <div className="absolute inset-0 bg-gradient-to-br from-blue-300 to-blue-600 opacity-50"></div>
             </div> 
-            <span className="text-white font-bold tracking-wide text-sm font-sans">Humanizer AI - v1.0.exe</span>
+            <span className="text-white font-bold tracking-wide text-sm font-sans">Humanizer AI - v1.1 (Groq Edition)</span>
           </div>
           <div className="flex space-x-1">
              <button className="w-5 h-5 bg-[#c0c0c0] border-2 border-t-white border-l-white border-r-black border-b-black text-[10px] font-bold flex items-center justify-center leading-none active:border-t-black active:border-l-black active:border-r-white active:border-b-white">_</button>
@@ -170,7 +204,7 @@ export default function App() {
 
         {/* Status Bar Footer */}
         <div className="mt-auto border-t border-[#808080] p-1 bg-[#c0c0c0] flex justify-between text-xs text-gray-800">
-          <span>Gemini-2.5-Flash driver loaded. Mode: {selectedTone}</span>
+          <span>Groq driver loaded. Model: openai/gpt-oss-120b</span>
           <div className="flex space-x-1">
              <span className="border border-[#808080] border-b-white border-r-white px-2 bg-[#c0c0c0] shadow-inner text-gray-400">NUM</span>
              <span className="border border-[#808080] border-b-white border-r-white px-2 bg-[#c0c0c0] shadow-inner">CAPS</span>
