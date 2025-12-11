@@ -1,0 +1,5 @@
+{
+  "name": "Humanizer AI",
+  "description": "Instantly rewrite robotic text into natural, human-sounding language using Gemini 2.5 Flash.",
+  "requestFramePermissions": []
+}
