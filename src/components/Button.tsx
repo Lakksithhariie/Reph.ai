@@ -4,18 +4,21 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary';
 }
 
-export const Button: React.FC<ButtonProps> = ({ 
-  variant = 'secondary', 
-  className = '', 
-  children, 
-  ...props 
+export const Button: React.FC<ButtonProps> = ({
+  variant = 'secondary',
+  className = '',
+  children,
+  ...props
 }) => {
-  const baseStyles = "px-4 py-1 text-sm bg-[#c0c0c0] border-2 border-t-white border-l-white border-r-black border-b-black active:border-t-black active:border-l-black active:border-r-white active:border-b-white focus:outline-none focus:ring-1 focus:ring-black focus:ring-offset-1 focus:ring-offset-[#c0c0c0]";
-  const variantStyles = variant === 'primary' ? "font-bold text-black" : "text-black";
+  const baseStyles = 'px-4 py-2 text-xs font-bold border-2 border-black font-mono uppercase tracking-wide transition-all';
+  const variantStyles = variant === 'primary' 
+    ? 'bg-black text-[#e8e8d0] hover:bg-[#333] active:bg-[#555]' 
+    : 'bg-[#d0d0b8] text-black hover:bg-[#c0c0a8] active:bg-[#b0b098]';
+  const disabledStyles = 'disabled:bg-[#999] disabled:text-[#666] disabled:cursor-not-allowed disabled:border-[#666]';
 
   return (
-    <button 
-      className={`${baseStyles} ${variantStyles} ${className} disabled:text-gray-500 disabled:active:border-t-white disabled:active:border-l-white disabled:active:border-r-black disabled:active:border-b-black`} 
+    <button
+      className={`${baseStyles} ${variantStyles} ${disabledStyles} ${className}`}
       {...props}
     >
       {children}

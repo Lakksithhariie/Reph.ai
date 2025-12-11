@@ -1,216 +1,241 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import Groq from "groq-sdk";
-// CORRECTED IMPORTS:
-import { TextArea } from "./src/components/TextArea";
-import { Button } from "./src/components/Button";
-
-const TONES = ['Standard', 'Casual', 'Professional', 'Witty', 'Empathetic', 'Assertive'];
-
-// Initialize Groq SDK (Client-side)
-const groq = new Groq({
-  apiKey: process.env.GROQ_API_KEY, 
-  dangerouslyAllowBrowser: true 
-});
+import { TextArea } from './src/components/TextArea';
+import { Button } from './src/components/Button';
+import { ModelSelector } from './src/components/ModelSelector';
+import { useGroqAPI } from './src/hooks/useGroqAPI';
+import { validateInput } from './src/utils/validation';
+import { TONES, MODEL_TIERS } from './src/config/constants';
+import type { ToneType, ModelTier } from './src/types';
 
 export default function App() {
   const [inputText, setInputText] = useState('');
-  const [outputText, setOutputText] = useState('');
-  const [selectedTone, setSelectedTone] = useState('Standard');
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  
-  // Focus input on mount
+  const [selectedTone, setSelectedTone] = useState<ToneType>('Standard');
+  const [selectedModel, setSelectedModel] = useState(MODEL_TIERS[0].models[0].id);
+  const [validationError, setValidationError] = useState<string | null>(null);
+  const [copySuccess, setCopySuccess] = useState(false);
+
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const { isLoading, error: apiError, output, convertText, reset } = useGroqAPI();
+
+  // Auto-focus input on mount
   useEffect(() => {
-    if (inputRef.current) {
-      inputRef.current.focus();
-    }
+    inputRef.current?.focus();
   }, []);
 
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+        e.preventDefault();
+        handleConvert();
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        handleClear();
+      }
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'c') {
+        e.preventDefault();
+        if (output) handleCopy();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, [inputText, selectedTone, output]);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const newText = e.target.value;
+    setInputText(newText);
+    setValidationError(null);
+    setCopySuccess(false);
+  };
+
   const handleConvert = useCallback(async () => {
-    if (!inputText.trim()) return;
+    const validation = validateInput(inputText);
 
-    setIsLoading(true);
-    setError(null);
-    
+    if (!validation.isValid) {
+      setValidationError(validation.error);
+      return;
+    }
+
+    setValidationError(null);
+    await convertText(inputText, selectedTone, selectedModel);
+  }, [inputText, selectedTone, selectedModel, convertText]);
+
+  const handleCopy = useCallback(async () => {
+    if (!output) return;
+
     try {
-      const prompt = `
-        You are an expert human writer and editor. Your task is to rewrite the provided text to sound completely natural, human, and engaging, removing all traces of robotic or AI-generated patterns.
-        
-        Target Tone: ${selectedTone}
-        
-        Strict Instructions:
-        1. Maintain the original meaning but drastically improve flow, vocabulary, and sentence structure.
-        2. Avoid repetitive sentence starts and stiff transitions.
-        3. Do not output explanations, preambles, or conversational filler (like "Here is the text"). 
-        4. Output ONLY the rewritten content.
-        
-        Original Text:
-        ${inputText}
-      `;
-
-      const completion = await groq.chat.completions.create({
-        model: "openai/gpt-oss-120b",
-        messages: [
-          {
-            role: "user",
-            content: prompt,
-          },
-        ],
-      });
-
-      const result = completion.choices[0]?.message?.content || "No output generated.";
-      setOutputText(result);
-
-    } catch (err: any) {
-      setError("Error: " + (err.message || "Connection failure or API Key missing."));
-      console.error(err);
-    } finally {
-      setIsLoading(false);
+      await navigator.clipboard.writeText(output);
+      setCopySuccess(true);
+      setTimeout(() => setCopySuccess(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
     }
-  }, [inputText, selectedTone]);
+  }, [output]);
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-      e.preventDefault();
-      handleConvert();
-    }
-  };
-
-  const handleCopy = () => {
-    if (!outputText) return;
-    navigator.clipboard.writeText(outputText);
-    alert("Text copied to clipboard!");
-  };
-
-  const handleClear = () => {
+  const handleClear = useCallback(() => {
     setInputText('');
-    setOutputText('');
-    setError(null);
-    if(inputRef.current) inputRef.current.focus();
-  };
+    setValidationError(null);
+    setCopySuccess(false);
+    reset();
+    inputRef.current?.focus();
+  }, [reset]);
+
+  const validation = validateInput(inputText);
+  const canConvert = validation.isValid && !isLoading;
+  const displayError = validationError || apiError?.message || null;
 
   return (
-    <div className="min-h-screen p-2 sm:p-8 flex items-center justify-center">
-      
-      {/* Main Window */}
-      <div className="w-full max-w-5xl bg-[#c0c0c0] border-[3px] border-t-white border-l-white border-r-black border-b-black shadow-2xl flex flex-col">
+    <div className="min-h-screen p-2 sm:p-4 flex items-center justify-center bg-[#1a1a1a]">
+      {/* Nokia 1112 Style Window */}
+      <div className="w-full max-w-6xl bg-[#e8e8d0] border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] flex flex-col font-mono">
         
-        {/* Title Bar */}
-        <div className="bg-[#000080] px-2 py-1 flex justify-between items-center select-none">
+        {/* Nokia Header Bar */}
+        <div className="bg-black px-3 py-2 flex justify-between items-center border-b-4 border-black">
           <div className="flex items-center space-x-2">
-            <div className="w-4 h-4 bg-white rounded-sm relative overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-blue-300 to-blue-600 opacity-50"></div>
-            </div> 
-            <span className="text-white font-bold tracking-wide text-sm font-sans">Humanizer AI - v1.1 (Groq Edition)</span>
+            <div className="w-3 h-3 bg-[#e8e8d0] border-2 border-[#e8e8d0]"></div>
+            <span className="text-[#e8e8d0] font-bold text-xs tracking-wider uppercase">
+              REPH.AI
+            </span>
           </div>
-          <div className="flex space-x-1">
-             <button className="w-5 h-5 bg-[#c0c0c0] border-2 border-t-white border-l-white border-r-black border-b-black text-[10px] font-bold flex items-center justify-center leading-none active:border-t-black active:border-l-black active:border-r-white active:border-b-white">_</button>
-             <button className="w-5 h-5 bg-[#c0c0c0] border-2 border-t-white border-l-white border-r-black border-b-black text-[10px] font-bold flex items-center justify-center leading-none active:border-t-black active:border-l-black active:border-r-white active:border-b-white">□</button>
-             <button className="w-5 h-5 bg-[#c0c0c0] border-2 border-t-white border-l-white border-r-black border-b-black text-[10px] font-bold flex items-center justify-center leading-none active:border-t-black active:border-l-black active:border-r-white active:border-b-white">×</button>
+          <div className="flex items-center space-x-3">
+            <div className="flex space-x-1">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className={`w-1 h-3 border border-[#e8e8d0] ${i <= 3 ? 'bg-[#e8e8d0]' : ''}`}></div>
+              ))}
+            </div>
+            <span className="text-[#e8e8d0] text-xs">⚡</span>
           </div>
         </div>
 
-        {/* Menu Bar */}
-        <div className="flex space-x-4 px-3 py-1 text-sm border-b border-[#808080] shadow-sm bg-[#c0c0c0]">
-          <span className="underline cursor-pointer hover:bg-[#000080] hover:text-white px-1">F</span>ile
-          <span className="underline cursor-pointer hover:bg-[#000080] hover:text-white px-1">E</span>dit
-          <span className="underline cursor-pointer hover:bg-[#000080] hover:text-white px-1">V</span>iew
-          <span className="underline cursor-pointer hover:bg-[#000080] hover:text-white px-1">H</span>elp
+        {/* Nokia Menu Bar */}
+        <div className="bg-[#d0d0b8] border-b-2 border-black px-2 py-1 text-xs flex space-x-4">
+          <span className="text-black hover:bg-black hover:text-[#e8e8d0] px-1 cursor-pointer">OPTIONS</span>
+          <span className="text-black hover:bg-black hover:text-[#e8e8d0] px-1 cursor-pointer">TOOLS</span>
+          <span className="text-black hover:bg-black hover:text-[#e8e8d0] px-1 cursor-pointer">HELP</span>
         </div>
 
-        {/* Toolbar (Tone Selector) */}
-        <div className="flex items-center space-x-2 px-3 py-2 border-b border-white bg-[#c0c0c0] shadow-sm">
-          <span className="text-sm">Tone:</span>
-          <select 
-            value={selectedTone}
-            onChange={(e) => setSelectedTone(e.target.value)}
-            className="text-sm h-6 min-w-[140px] border-2 border-t-[#808080] border-l-[#808080] border-r-white border-b-white bg-white focus:outline-none"
-          >
-            {TONES.map(tone => (
-              <option key={tone} value={tone}>{tone}</option>
-            ))}
-          </select>
-          <div className="h-5 w-[1px] bg-[#808080] border-r border-white mx-2"></div>
-          <span className="text-xs text-gray-600 italic">Select a human personality</span>
+        {/* Control Panel */}
+        <div className="bg-[#e8e8d0] border-b-2 border-black p-3 space-y-2">
+          {/* Tone Selector */}
+          <div className="flex items-center space-x-2">
+            <label className="text-black text-xs font-bold min-w-[60px]">TONE:</label>
+            <select
+              value={selectedTone}
+              onChange={(e) => setSelectedTone(e.target.value as ToneType)}
+              className="flex-1 text-xs h-6 px-1 border-2 border-black bg-white text-black focus:outline-none focus:ring-2 focus:ring-black font-mono"
+              disabled={isLoading}
+            >
+              {TONES.map(tone => (
+                <option key={tone} value={tone}>{tone.toUpperCase()}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Model Selector */}
+          <ModelSelector
+            selectedModel={selectedModel}
+            onModelChange={setSelectedModel}
+            disabled={isLoading}
+          />
         </div>
 
         {/* Content Area */}
-        <div className="p-4 space-y-4">
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="p-3 space-y-3 bg-[#e8e8d0]">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
             
             {/* Left: Input */}
             <div className="flex flex-col space-y-1">
-              <label className="text-sm font-bold truncate">Input Text (Raw):</label>
+              <label className="text-black text-xs font-bold uppercase tracking-wide">
+                ▶ INPUT TEXT:
+              </label>
               <TextArea
                 ref={inputRef}
                 value={inputText}
-                onChange={(e) => setInputText(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="Type or paste robotic text here..."
+                onChange={handleInputChange}
+                placeholder="Paste AI-generated text here..."
                 disabled={isLoading}
                 className="h-64 md:h-80"
+                showCharCount={true}
+                currentCount={validation.characterCount}
+                maxCount={8000}
+                isNearLimit={validation.isNearLimit}
               />
             </div>
 
             {/* Right: Output */}
             <div className="flex flex-col space-y-1">
-              <label className="text-sm font-bold truncate">Output (Humanized - {selectedTone}):</label>
+              <label className="text-black text-xs font-bold uppercase tracking-wide">
+                ◀ OUTPUT ({selectedTone.toUpperCase()}):
+              </label>
               <TextArea
                 readOnly
-                value={outputText}
-                placeholder="Waiting for input..."
-                className={`h-64 md:h-80 ${isLoading ? 'bg-gray-100' : 'bg-white'}`}
+                value={output}
+                placeholder={isLoading ? '[ PROCESSING... ]' : '[ WAITING FOR INPUT ]'}
+                className={`h-64 md:h-80 ${isLoading ? 'animate-pulse' : ''}`}
               />
             </div>
-
           </div>
 
           {/* Controls */}
-          <div className="flex flex-col sm:flex-row justify-between items-center gap-4 pt-2 border-t border-[#808080] mt-2">
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-3 pt-2 border-t-2 border-black">
             
-            <div className="text-xs text-gray-600 border border-[#808080] border-b-white border-r-white p-1 w-full sm:w-auto bg-[#c0c0c0] inset-border px-2 shadow-inner">
-              Status: {isLoading ? 'Processing...' : error ? 'Error' : 'Ready'}
+            {/* Status Display */}
+            <div className="text-xs border-2 border-black p-2 w-full sm:w-auto bg-white font-mono min-h-[32px] flex items-center px-3">
+              {isLoading ? (
+                <span className="animate-pulse">⏳ PROCESSING...</span>
+              ) : displayError ? (
+                <span>⚠ {displayError.toUpperCase()}</span>
+              ) : copySuccess ? (
+                <span>✓ COPIED!</span>
+              ) : output ? (
+                <span>✓ READY</span>
+              ) : (
+                <span>● READY</span>
+              )}
             </div>
 
-            <div className="flex space-x-4">
+            {/* Action Buttons */}
+            <div className="flex space-x-2">
               <Button onClick={handleClear} variant="secondary">
-                Clear All
+                CLEAR
               </Button>
               <Button
                 onClick={handleConvert}
-                disabled={!inputText.trim() || isLoading}
+                disabled={!canConvert}
                 variant="primary"
-                className="px-8 font-bold"
               >
-                {isLoading ? 'Working...' : 'Convert Text'}
+                {isLoading ? 'WAIT...' : 'CONVERT'}
               </Button>
-              {outputText && (
+              {output && (
                 <Button onClick={handleCopy} variant="secondary">
-                  Copy
+                  {copySuccess ? '✓ OK' : 'COPY'}
                 </Button>
               )}
             </div>
           </div>
 
-          {error && (
-            <div className="bg-[#c0c0c0] p-2 border-2 border-red-500 text-red-600 font-bold text-center text-sm">
-              ! {error}
+          {/* Error Display */}
+          {displayError && (
+            <div className="bg-white border-4 border-black p-3 text-center text-xs font-bold">
+              ⚠ ERROR: {displayError.toUpperCase()}
             </div>
           )}
-
         </div>
 
-        {/* Status Bar Footer */}
-        <div className="mt-auto border-t border-[#808080] p-1 bg-[#c0c0c0] flex justify-between text-xs text-gray-800">
-          <span>Groq driver loaded. Model: openai/gpt-oss-120b</span>
-          <div className="flex space-x-1">
-             <span className="border border-[#808080] border-b-white border-r-white px-2 bg-[#c0c0c0] shadow-inner text-gray-400">NUM</span>
-             <span className="border border-[#808080] border-b-white border-r-white px-2 bg-[#c0c0c0] shadow-inner">CAPS</span>
+        {/* Nokia Status Bar Footer */}
+        <div className="mt-auto bg-black p-2 flex justify-between text-[#e8e8d0] text-xs font-mono">
+          <div className="flex items-center space-x-4">
+            <span>GROQ</span>
+            <span>•</span>
+            <span className="truncate max-w-[200px]">{selectedModel.split('/').pop()?.toUpperCase()}</span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <span>{validation.characterCount} CH</span>
+            <span className="animate-pulse">●</span>
           </div>
         </div>
-
       </div>
     </div>
   );

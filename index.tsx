@@ -13,3 +13,9 @@ root.render(
     <App />
   </React.StrictMode>
 );
+
+// Remove loading indicator after React mounts
+const loadingIndicator = document.getElementById('loading-indicator');
+if (loadingIndicator) {
+  loadingIndicator.remove();
+}
