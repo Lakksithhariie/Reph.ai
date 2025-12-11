@@ -5,7 +5,7 @@ import { ModelSelector } from './src/components/ModelSelector';
 import { useGroqAPI } from './src/hooks/useGroqAPI';
 import { validateInput } from './src/utils/validation';
 import { TONES, MODEL_TIERS } from './src/config/constants';
-import type { ToneType, ModelTier } from './src/types';
+import type { ToneType } from './src/types';  // ← Removed ModelTier from here
 
 export default function App() {
   const [inputText, setInputText] = useState('');
@@ -96,7 +96,7 @@ export default function App() {
           <div className="flex items-center space-x-2">
             <div className="w-3 h-3 bg-[#e8e8d0] border-2 border-[#e8e8d0]"></div>
             <span className="text-[#e8e8d0] font-bold text-xs tracking-wider uppercase">
-              REPH.AI
+              REPH.AI v2.0
             </span>
           </div>
           <div className="flex items-center space-x-3">

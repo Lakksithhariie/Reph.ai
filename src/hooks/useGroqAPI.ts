@@ -5,6 +5,7 @@ import { ERROR_MESSAGES } from '../config/constants';
 import { sanitizeText } from '../utils/validation';
 
 const initializeGroq = (): Groq | null => {
+  // Only use import.meta.env (Vite's way)
   const apiKey = import.meta.env.VITE_GROQ_API_KEY;
   
   if (!apiKey) {
