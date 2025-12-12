@@ -5,7 +5,7 @@ import { ModelSelector } from './src/components/ModelSelector';
 import { useGroqAPI } from './src/hooks/useGroqAPI';
 import { validateInput } from './src/utils/validation';
 import { TONES, MODEL_TIERS } from './src/config/constants';
-import type { ToneType } from './src/types';  // ← Removed ModelTier from here
+import type { ToneType } from './src/types';
 
 export default function App() {
   const [inputText, setInputText] = useState('');
@@ -17,12 +17,10 @@ export default function App() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const { isLoading, error: apiError, output, convertText, reset } = useGroqAPI();
 
-  // Auto-focus input on mount
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
 
-  // Keyboard shortcuts
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
@@ -32,10 +30,6 @@ export default function App() {
       if (e.key === 'Escape') {
         e.preventDefault();
         handleClear();
-      }
-      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'c') {
-        e.preventDefault();
-        if (output) handleCopy();
       }
     };
 
@@ -86,154 +80,182 @@ export default function App() {
   const canConvert = validation.isValid && !isLoading;
   const displayError = validationError || apiError?.message || null;
 
+  // Get current time
+  const [currentTime, setCurrentTime] = useState(new Date());
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
   return (
-    <div className="min-h-screen p-2 sm:p-4 flex items-center justify-center bg-[#1a1a1a]">
-      {/* Nokia 1112 Style Window */}
-      <div className="w-full max-w-6xl bg-[#e8e8d0] border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] flex flex-col font-mono">
-        
-        {/* Nokia Header Bar */}
-        <div className="bg-black px-3 py-2 flex justify-between items-center border-b-4 border-black">
+    <div className="min-h-screen bg-gradient-to-b from-[#1c1c1c] via-[#2a2a2a] to-[#1c1c1c] p-4 flex items-center justify-center">
+      {/* iPhone-style Container */}
+      <div className="w-full max-w-4xl">
+        {/* Status Bar */}
+        <div className="bg-gradient-to-b from-[#2d2d2d] to-[#1a1a1a] rounded-t-2xl px-4 py-2 flex justify-between items-center text-white text-xs shadow-lg border-b border-gray-700">
           <div className="flex items-center space-x-2">
-            <div className="w-3 h-3 bg-[#e8e8d0] border-2 border-[#e8e8d0]"></div>
-            <span className="text-[#e8e8d0] font-bold text-xs tracking-wider uppercase">
-              REPH.AI v2.0
-            </span>
-          </div>
-          <div className="flex items-center space-x-3">
             <div className="flex space-x-1">
-              {[1, 2, 3, 4].map((i) => (
-                <div key={i} className={`w-1 h-3 border border-[#e8e8d0] ${i <= 3 ? 'bg-[#e8e8d0]' : ''}`}></div>
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className={`w-1 h-3 rounded-sm ${i < 3 ? 'bg-white' : 'bg-gray-500'}`}></div>
               ))}
             </div>
-            <span className="text-[#e8e8d0] text-xs">⚡</span>
+            <span className="font-medium">Carrier</span>
           </div>
-        </div>
-
-        {/* Nokia Menu Bar */}
-        <div className="bg-[#d0d0b8] border-b-2 border-black px-2 py-1 text-xs flex space-x-4">
-          <span className="text-black hover:bg-black hover:text-[#e8e8d0] px-1 cursor-pointer">OPTIONS</span>
-          <span className="text-black hover:bg-black hover:text-[#e8e8d0] px-1 cursor-pointer">TOOLS</span>
-          <span className="text-black hover:bg-black hover:text-[#e8e8d0] px-1 cursor-pointer">HELP</span>
-        </div>
-
-        {/* Control Panel */}
-        <div className="bg-[#e8e8d0] border-b-2 border-black p-3 space-y-2">
-          {/* Tone Selector */}
+          <div className="font-bold tracking-wide">
+            {currentTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+          </div>
           <div className="flex items-center space-x-2">
-            <label className="text-black text-xs font-bold min-w-[60px]">TONE:</label>
-            <select
-              value={selectedTone}
-              onChange={(e) => setSelectedTone(e.target.value as ToneType)}
-              className="flex-1 text-xs h-6 px-1 border-2 border-black bg-white text-black focus:outline-none focus:ring-2 focus:ring-black font-mono"
-              disabled={isLoading}
-            >
-              {TONES.map(tone => (
-                <option key={tone} value={tone}>{tone.toUpperCase()}</option>
-              ))}
-            </select>
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z" />
+            </svg>
+            <span>100%</span>
           </div>
-
-          {/* Model Selector */}
-          <ModelSelector
-            selectedModel={selectedModel}
-            onModelChange={setSelectedModel}
-            disabled={isLoading}
-          />
         </div>
 
-        {/* Content Area */}
-        <div className="p-3 space-y-3 bg-[#e8e8d0]">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-            
-            {/* Left: Input */}
-            <div className="flex flex-col space-y-1">
-              <label className="text-black text-xs font-bold uppercase tracking-wide">
-                ▶ INPUT TEXT:
-              </label>
-              <TextArea
-                ref={inputRef}
-                value={inputText}
-                onChange={handleInputChange}
-                placeholder="Paste AI-generated text here..."
-                disabled={isLoading}
-                className="h-64 md:h-80"
-                showCharCount={true}
-                currentCount={validation.characterCount}
-                maxCount={8000}
-                isNearLimit={validation.isNearLimit}
-              />
+        {/* Main App Container */}
+        <div className="bg-gradient-to-b from-[#c5ccd3] to-[#8b9aa8] rounded-b-2xl shadow-2xl overflow-hidden">
+          
+          {/* Header */}
+          <div className="bg-gradient-to-b from-[#6d84a1] via-[#5b7390] to-[#4a5f7a] px-4 py-3 text-center shadow-lg">
+            <div className="flex items-center justify-center space-x-2 mb-1">
+              <div className="w-8 h-8 bg-gradient-to-b from-[#4a90e2] to-[#2e5c8a] rounded-lg flex items-center justify-center shadow-md">
+                <span className="text-white text-xl">✨</span>
+              </div>
+              <h1 className="text-white text-xl font-bold tracking-tight drop-shadow-md">
+                Reph.ai
+              </h1>
             </div>
-
-            {/* Right: Output */}
-            <div className="flex flex-col space-y-1">
-              <label className="text-black text-xs font-bold uppercase tracking-wide">
-                ◀ OUTPUT ({selectedTone.toUpperCase()}):
-              </label>
-              <TextArea
-                readOnly
-                value={output}
-                placeholder={isLoading ? '[ PROCESSING... ]' : '[ WAITING FOR INPUT ]'}
-                className={`h-64 md:h-80 ${isLoading ? 'animate-pulse' : ''}`}
-              />
-            </div>
+            <p className="text-white/80 text-xs font-medium">AI Text Humanizer</p>
           </div>
 
-          {/* Controls */}
-          <div className="flex flex-col sm:flex-row justify-between items-center gap-3 pt-2 border-t-2 border-black">
+          {/* Content Area */}
+          <div className="p-4 space-y-4">
             
-            {/* Status Display */}
-            <div className="text-xs border-2 border-black p-2 w-full sm:w-auto bg-white font-mono min-h-[32px] flex items-center px-3">
-              {isLoading ? (
-                <span className="animate-pulse">⏳ PROCESSING...</span>
-              ) : displayError ? (
-                <span>⚠ {displayError.toUpperCase()}</span>
-              ) : copySuccess ? (
-                <span>✓ COPIED!</span>
-              ) : output ? (
-                <span>✓ READY</span>
-              ) : (
-                <span>● READY</span>
-              )}
+            {/* Settings Panel */}
+            <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-lg overflow-hidden border border-gray-300">
+              <div className="bg-gradient-to-b from-[#f7f7f7] to-[#e0e0e0] border-b border-gray-300">
+                <div className="px-4 py-2">
+                  <label className="text-gray-700 text-sm font-semibold">Tone</label>
+                </div>
+              </div>
+              <div className="p-3">
+                <select
+                  value={selectedTone}
+                  onChange={(e) => setSelectedTone(e.target.value as ToneType)}
+                  className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-gray-800 text-sm font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  disabled={isLoading}
+                >
+                  {TONES.map(tone => (
+                    <option key={tone} value={tone}>{tone}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Model Selector Panel */}
+            <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-lg overflow-hidden border border-gray-300">
+              <div className="bg-gradient-to-b from-[#f7f7f7] to-[#e0e0e0] border-b border-gray-300">
+                <div className="px-4 py-2">
+                  <label className="text-gray-700 text-sm font-semibold">AI Model</label>
+                </div>
+              </div>
+              <div className="p-3">
+                <ModelSelector
+                  selectedModel={selectedModel}
+                  onModelChange={setSelectedModel}
+                  disabled={isLoading}
+                />
+              </div>
+            </div>
+
+            {/* Text Areas */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {/* Input */}
+              <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-lg overflow-hidden border border-gray-300">
+                <div className="bg-gradient-to-b from-[#f7f7f7] to-[#e0e0e0] border-b border-gray-300 px-4 py-2">
+                  <h3 className="text-gray-700 text-sm font-semibold">Input Text</h3>
+                </div>
+                <div className="p-3">
+                  <TextArea
+                    ref={inputRef}
+                    value={inputText}
+                    onChange={handleInputChange}
+                    placeholder="Type or paste your AI-generated text here..."
+                    disabled={isLoading}
+                    className="h-48 lg:h-64"
+                    showCharCount={true}
+                    currentCount={validation.characterCount}
+                    maxCount={8000}
+                    isNearLimit={validation.isNearLimit}
+                  />
+                </div>
+              </div>
+
+              {/* Output */}
+              <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-lg overflow-hidden border border-gray-300">
+                <div className="bg-gradient-to-b from-[#f7f7f7] to-[#e0e0e0] border-b border-gray-300 px-4 py-2">
+                  <h3 className="text-gray-700 text-sm font-semibold">Humanized Text</h3>
+                </div>
+                <div className="p-3">
+                  <TextArea
+                    readOnly
+                    value={output}
+                    placeholder={isLoading ? 'Processing...' : 'Your humanized text will appear here...'}
+                    className={`h-48 lg:h-64 ${isLoading ? 'animate-pulse' : ''}`}
+                  />
+                </div>
+              </div>
             </div>
 
             {/* Action Buttons */}
-            <div className="flex space-x-2">
-              <Button onClick={handleClear} variant="secondary">
-                CLEAR
-              </Button>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
               <Button
                 onClick={handleConvert}
                 disabled={!canConvert}
                 variant="primary"
+                className="w-full sm:w-auto"
               >
-                {isLoading ? 'WAIT...' : 'CONVERT'}
+                {isLoading ? 'Converting...' : 'Humanize Text'}
               </Button>
+              
               {output && (
-                <Button onClick={handleCopy} variant="secondary">
-                  {copySuccess ? '✓ OK' : 'COPY'}
+                <Button
+                  onClick={handleCopy}
+                  variant="secondary"
+                  className="w-full sm:w-auto"
+                >
+                  {copySuccess ? '✓ Copied!' : 'Copy Output'}
                 </Button>
               )}
+              
+              <Button
+                onClick={handleClear}
+                variant="secondary"
+                className="w-full sm:w-auto"
+              >
+                Clear All
+              </Button>
             </div>
+
+            {/* Status Message */}
+            {(displayError || copySuccess || isLoading) && (
+              <div className={`rounded-xl p-3 text-center text-sm font-medium shadow-lg ${
+                displayError 
+                  ? 'bg-gradient-to-b from-red-100 to-red-200 text-red-800 border border-red-300' 
+                  : copySuccess 
+                  ? 'bg-gradient-to-b from-green-100 to-green-200 text-green-800 border border-green-300'
+                  : 'bg-gradient-to-b from-blue-100 to-blue-200 text-blue-800 border border-blue-300'
+              }`}>
+                {displayError ? `⚠️ ${displayError}` : copySuccess ? '✓ Copied to clipboard!' : '⏳ Processing...'}
+              </div>
+            )}
           </div>
 
-          {/* Error Display */}
-          {displayError && (
-            <div className="bg-white border-4 border-black p-3 text-center text-xs font-bold">
-              ⚠ ERROR: {displayError.toUpperCase()}
-            </div>
-          )}
-        </div>
-
-        {/* Nokia Status Bar Footer */}
-        <div className="mt-auto bg-black p-2 flex justify-between text-[#e8e8d0] text-xs font-mono">
-          <div className="flex items-center space-x-4">
-            <span>GROQ</span>
-            <span>•</span>
-            <span className="truncate max-w-[200px]">{selectedModel.split('/').pop()?.toUpperCase()}</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <span>{validation.characterCount} CH</span>
-            <span className="animate-pulse">●</span>
+          {/* Footer */}
+          <div className="bg-gradient-to-b from-[#4a5f7a] to-[#3a4f6a] px-4 py-2 text-center border-t border-gray-700">
+            <p className="text-white/70 text-xs">
+              Powered by Groq • {validation.characterCount} characters
+            </p>
           </div>
         </div>
       </div>
