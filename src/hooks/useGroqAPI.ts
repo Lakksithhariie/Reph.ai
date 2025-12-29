@@ -1,11 +1,9 @@
 import { useState, useCallback } from 'react';
 import Groq from 'groq-sdk';
-import { ToneType, APIError, ConversionState } from '../types';
+import { Intent, EditResponse } from '../types';
 import { ERROR_MESSAGES } from '../config/constants';
-import { sanitizeText } from '../utils/validation';
 
 const initializeGroq = (): Groq | null => {
-  // Only use import.meta.env (Vite's way)
   const apiKey = import.meta.env.VITE_GROQ_API_KEY;
   
   if (!apiKey) {
@@ -21,111 +19,100 @@ const initializeGroq = (): Groq | null => {
 
 const groq = initializeGroq();
 
-export const useGroqAPI = () => {
-  const [state, setState] = useState<ConversionState>({
-    isLoading: false,
-    error: null,
-    output: '',
-  });
+// INTENT-SAFE PROMPT (V1 CONTRACT)
+const buildIntentSafePrompt = (text: string, intent: Intent): string => {
+  return `You are an AI editor. Your task is to improve grammar and clarity WITHOUT changing the original intent or meaning.
 
-  const buildPrompt = (text: string, tone: ToneType): string => {
-    const toneInstructions: Record<ToneType, string> = {
-      Standard: 'Use clear, balanced, and natural language.',
-      Casual: 'Write in a relaxed, friendly, conversational tone.',
-      Professional: 'Maintain formal, polished, business-appropriate language.',
-      Witty: 'Inject clever humor and wordplay while keeping core message intact.',
-      Empathetic: 'Write with warmth, understanding, and emotional intelligence.',
-      Assertive: 'Use confident, direct, and authoritative language.',
-    };
+Intent: ${intent}
 
-    return `You are an expert human writer. Rewrite this text to sound natural and human.
+Rules:
+- Do not add new claims
+- Do not change sentiment strength
+- Do not remove qualifiers
+- Preserve original meaning strictly
+- Fix only grammar, punctuation, and clarity issues
+- Do not alter the core message
 
-**Tone**: ${tone}
-${toneInstructions[tone]}
+Text:
+${text}
 
-**Rules**:
-1. Remove all robotic patterns
-2. Vary sentence structure naturally
-3. Maintain original meaning
-4. Output ONLY the rewritten text
+Respond ONLY with the edited text. No explanations.`;
+};
 
-**Text**:
-${text}`;
-  };
-
-  const convertText = useCallback(async (inputText: string, selectedTone: ToneType, modelId: string) => {
-    if (!groq) {
-      setState({
-        isLoading: false,
-        error: { message: ERROR_MESSAGES.NO_API_KEY },
-        output: '',
-      });
-      return;
-    }
-
-    setState({ isLoading: true, error: null, output: '' });
-
-    try {
-      const sanitizedText = sanitizeText(inputText);
-      const prompt = buildPrompt(sanitizedText, selectedTone);
-
-      const completion = await groq.chat.completions.create({
-        model: modelId,
-        messages: [{ role: 'user', content: prompt }],
-        max_tokens: 8192,
-        temperature: 0.7,
-      });
-
-      const result = completion.choices[0]?.message?.content?.trim();
-
-      if (!result) {
-        throw new Error('No output generated');
-      }
-
-      setState({
-        isLoading: false,
-        error: null,
-        output: result,
-      });
-    } catch (err: unknown) {
-      const apiError = handleAPIError(err);
-      setState({
-        isLoading: false,
-        error: apiError,
-        output: '',
-      });
-    }
-  }, []);
-
-  const reset = useCallback(() => {
-    setState({
-      isLoading: false,
-      error: null,
-      output: '',
-    });
-  }, []);
-
+// Simple heuristic for intent preservation check
+const checkIntentPreservation = (original: string, edited: string): { preserved: boolean; confidence: number } => {
+  const origLen = original.length;
+  const editLen = edited.length;
+  
+  // Length change > 30% is suspicious
+  const lengthRatio = Math.abs(editLen - origLen) / origLen;
+  
+  // Simple keyword sentiment preservation check
+  const riskKeywords = ['however', 'although', 'despite', 'unfortunately', 'fortunately'];
+  const origHasRisk = riskKeywords.some(k => original.toLowerCase().includes(k));
+  const editHasRisk = riskKeywords.some(k => edited.toLowerCase().includes(k));
+  
+  let confidence = 1.0;
+  
+  if (lengthRatio > 0.3) confidence -= 0.3;
+  if (origHasRisk !== editHasRisk) confidence -= 0.2;
+  
   return {
-    ...state,
-    convertText,
-    reset,
+    preserved: confidence > 0.6,
+    confidence
   };
 };
 
-const handleAPIError = (err: unknown): APIError => {
-  if (err instanceof Error) {
-    if (err.message.includes('rate limit')) {
-      return { message: ERROR_MESSAGES.RATE_LIMIT, code: 'RATE_LIMIT' };
+export const useGroqAPI = () => {
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const editText = useCallback(async (
+    text: string,
+    intent: Intent
+  ): Promise<EditResponse> => {
+    if (!groq) {
+      throw new Error(ERROR_MESSAGES.NO_API_KEY);
     }
-    if (err.message.includes('network')) {
-      return { message: ERROR_MESSAGES.NETWORK_ERROR, code: 'NETWORK_ERROR' };
+
+    setIsProcessing(true);
+    setError(null);
+
+    try {
+      const prompt = buildIntentSafePrompt(text, intent);
+
+      const completion = await groq.chat.completions.create({
+        model: 'llama-3.3-70b-versatile', // Fixed model for V1
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: 4096,
+        temperature: 0.3, // Low creativity
+      });
+
+      const editedText = completion.choices[0]?.message?.content?.trim();
+
+      if (!editedText) {
+        throw new Error('No output generated');
+      }
+
+      const { preserved, confidence } = checkIntentPreservation(text, editedText);
+
+      return {
+        editedText,
+        intentPreserved: preserved,
+        confidence
+      };
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : ERROR_MESSAGES.API_ERROR;
+      setError(errorMessage);
+      throw new Error(errorMessage);
+    } finally {
+      setIsProcessing(false);
     }
-    if (err.message.includes('API key')) {
-      return { message: ERROR_MESSAGES.NO_API_KEY, code: 'AUTH_ERROR' };
-    }
-    
-    return { message: `${ERROR_MESSAGES.API_ERROR}: ${err.message}`, code: 'API_ERROR' };
-  }
-  
-  return { message: ERROR_MESSAGES.API_ERROR, code: 'UNKNOWN_ERROR' };
+  }, []);
+
+  return {
+    editText,
+    isProcessing,
+    error
+  };
 };

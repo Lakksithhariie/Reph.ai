@@ -5,12 +5,65 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="description" content="Reph.ai - iOS 4 Style AI Text Humanizer" />
-    <title>Reph.ai</title>
+    <meta name="description" content="KeepMeaning - The AI editor that protects meaning" />
+    <title>KeepMeaning - Fix grammar without changing what you mean</title>
     
     <link rel="icon" type="image/png" href="https://img.icons8.com/?size=100&id=81324&format=png&color=000000" />
     <link rel="apple-touch-icon" href="https://img.icons8.com/?size=100&id=81324&format=png&color=000000" />
+    
+    <!-- Google Fonts - Geom & Bakbak One -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bakbak+One&family=Geom:ital,wght@0,300..900;1,300..900&display=swap" rel="stylesheet">
+    
     <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Tailwind Config -->
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              // Navy brand colors (70% usage)
+              navy: {
+                DEFAULT: '#0B1D51',
+                dark: '#081633',
+                light: '#1a3875',
+                lighter: '#2d4d8f',
+              },
+              // Accent colors
+              accent: {
+                cyan: '#00F5FF',
+                green: '#10B981',
+                orange: '#FF9A62',
+                purple: '#A78BFA',
+              },
+            },
+            fontFamily: {
+              sans: ['Geom', 'system-ui', 'sans-serif'],
+              display: ['Bakbak One', 'system-ui', 'sans-serif'],
+            },
+            letterSpacing: {
+              tighter: '-0.04em',
+              tight: '-0.02em',
+            },
+            backgroundImage: {
+              'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
+              'gradient-mesh': 'linear-gradient(135deg, #0B1D51 0%, #1a3875 50%, #0B1D51 100%)',
+              'gradient-peach': 'linear-gradient(180deg, #FFE5D9 0%, #FFF5F0 100%)',
+              'gradient-mint': 'linear-gradient(180deg, #D9F5F0 0%, #F0FFF9 100%)',
+              'gradient-blue': 'linear-gradient(180deg, #D9E5FF 0%, #F0F5FF 100%)',
+            },
+            boxShadow: {
+              'soft': '0 2px 8px rgba(0, 0, 0, 0.08)',
+              'medium': '0 4px 16px rgba(0, 0, 0, 0.12)',
+              'large': '0 8px 32px rgba(0, 0, 0, 0.16)',
+              'navy': '0 4px 24px rgba(11, 29, 81, 0.25)',
+            },
+          },
+        },
+      }
+    </script>
     
     <script type="importmap">
     {
@@ -25,26 +78,37 @@
     </script>
     
     <style>
+      /* ===========================
+         BASE STYLES
+         =========================== */
       * {
         box-sizing: border-box;
         -webkit-tap-highlight-color: transparent;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+
+      html {
+        scroll-behavior: smooth;
+        -webkit-overflow-scrolling: touch;
       }
 
       body {
         margin: 0;
         padding: 0;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-        -webkit-font-smoothing: antialiased;
-        -moz-osx-font-smoothing: grayscale;
+        font-family: 'Geom', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
         overflow-x: hidden;
       }
 
-      /* iOS-style smooth scrolling */
-      * {
-        -webkit-overflow-scrolling: touch;
+      /* Font declarations */
+      h1, h2, h3, h4, h5, h6,
+      .font-display {
+        font-family: 'Bakbak One', system-ui, sans-serif;
       }
 
-      /* Custom scrollbar for iOS feel */
+      /* ===========================
+         CUSTOM SCROLLBAR (iOS-style)
+         =========================== */
       ::-webkit-scrollbar {
         width: 8px;
         height: 8px;
@@ -64,25 +128,254 @@
         background: rgba(0, 0, 0, 0.5);
       }
 
-      /* Loading animation */
+      /* ===========================
+         UTILITY CLASSES
+         =========================== */
+      .tracking-tight {
+        letter-spacing: -0.02em;
+      }
+
+      .tracking-tighter {
+        letter-spacing: -0.04em;
+      }
+
+      /* Wavy underline for grammar errors */
+      .decoration-wavy {
+        text-decoration-style: wavy;
+        text-decoration-thickness: 2px;
+      }
+
+      /* Backdrop blur utilities */
+      .backdrop-blur-xl {
+        backdrop-filter: blur(24px);
+        -webkit-backdrop-filter: blur(24px);
+      }
+
+      /* ===========================
+         ANIMATIONS
+         =========================== */
+      
+      /* Pulse animation */
       @keyframes pulse {
-        0%, 100% { opacity: 1; }
-        50% { opacity: 0.5; }
+        0%, 100% { 
+          opacity: 1; 
+        }
+        50% { 
+          opacity: 0.5; 
+        }
       }
 
       .animate-pulse {
         animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
       }
 
+      /* Slow pulse for orbs */
+      @keyframes slow-pulse {
+        0%, 100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.5;
+        }
+      }
+
+      .animate-slow-pulse {
+        animation: slow-pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+      }
+
+      /* Fade in animation */
+      @keyframes fade-in {
+        from {
+          opacity: 0;
+          transform: translateY(20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .animate-fade-in {
+        animation: fade-in 0.6s ease-out;
+      }
+
+      /* Breathe animation for gradient orbs */
+      @keyframes breathe {
+        0%, 100% { 
+          opacity: 0.5; 
+          transform: scale(1); 
+        }
+        50% { 
+          opacity: 0.8; 
+          transform: scale(1.05); 
+        }
+      }
+
+      .animate-breathe {
+        animation: breathe 4s ease-in-out infinite;
+      }
+
+      /* Animation delays */
+      .animation-delay-200 {
+        animation-delay: 200ms;
+      }
+
+      .animation-delay-400 {
+        animation-delay: 400ms;
+      }
+
+      .animation-delay-2000 {
+        animation-delay: 2000ms;
+      }
+
+      /* ===========================
+         FOCUS STYLES (iOS-style)
+         =========================== */
+      input:focus, 
+      textarea:focus, 
+      select:focus {
+        outline: none;
+      }
+
       /* Prevent text selection on UI elements */
-      button, select {
+      button, 
+      select {
         user-select: none;
         -webkit-user-select: none;
       }
 
-      /* iOS-style focus */
-      input:focus, textarea:focus, select:focus {
-        outline: none;
+      /* ===========================
+         GRADIENT BACKGROUNDS
+         =========================== */
+      .bg-gradient-mesh {
+        background: linear-gradient(135deg, #0B1D51 0%, #1a3875 50%, #0B1D51 100%);
+      }
+
+      .bg-gradient-peach {
+        background: linear-gradient(180deg, #FFE5D9 0%, #FFF5F0 100%);
+      }
+
+      .bg-gradient-mint {
+        background: linear-gradient(180deg, #D9F5F0 0%, #F0FFF9 100%);
+      }
+
+      .bg-gradient-blue {
+        background: linear-gradient(180deg, #D9E5FF 0%, #F0F5FF 100%);
+      }
+
+      /* ===========================
+         CUSTOM COMPONENTS
+         =========================== */
+      
+      /* Glassmorphism effect */
+      .glass {
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+      }
+
+      /* Navy glassmorphism */
+      .glass-navy {
+        background: rgba(11, 29, 81, 0.95);
+        backdrop-filter: blur(24px);
+        -webkit-backdrop-filter: blur(24px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+      }
+
+      /* Gradient text */
+      .gradient-text {
+        background: linear-gradient(135deg, #00F5FF 0%, #A78BFA 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+
+      /* ===========================
+         RESPONSIVE UTILITIES
+         =========================== */
+      
+      /* Hide scrollbar but keep functionality */
+      .scrollbar-hide::-webkit-scrollbar {
+        display: none;
+      }
+
+      .scrollbar-hide {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+      }
+
+      /* ===========================
+         LOADING STATES
+         =========================== */
+      
+      .skeleton {
+        background: linear-gradient(
+          90deg,
+          rgba(203, 213, 225, 0.2) 0%,
+          rgba(203, 213, 225, 0.4) 50%,
+          rgba(203, 213, 225, 0.2) 100%
+        );
+        background-size: 200% 100%;
+        animation: skeleton-loading 1.5s ease-in-out infinite;
+      }
+
+      @keyframes skeleton-loading {
+        0% {
+          background-position: 200% 0;
+        }
+        100% {
+          background-position: -200% 0;
+        }
+      }
+
+      /* ===========================
+         PRINT STYLES
+         =========================== */
+      @media print {
+        body {
+          background: white !important;
+        }
+        
+        .no-print {
+          display: none !important;
+        }
+      }
+
+      /* ===========================
+         ACCESSIBILITY
+         =========================== */
+      
+      /* Focus visible for keyboard navigation */
+      *:focus-visible {
+        outline: 2px solid #00F5FF;
+        outline-offset: 2px;
+      }
+
+      /* Reduce motion for users who prefer it */
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.01ms !important;
+        }
+      }
+
+      /* High contrast mode */
+      @media (prefers-contrast: high) {
+        button,
+        a {
+          text-decoration: underline;
+        }
+      }
+
+      /* ===========================
+         DARK MODE SUPPORT (Optional)
+         =========================== */
+      @media (prefers-color-scheme: dark) {
+        /* Add dark mode overrides here if needed */
       }
     </style>
   </head>
@@ -100,9 +393,10 @@
         padding: 20px;
         text-align: center;
         box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        z-index: 9999;
       ">
-        <h2 style="margin: 0 0 10px 0;">⚠️ JavaScript Required</h2>
-        <p style="margin: 0;">Please enable JavaScript to use Reph.ai</p>
+        <h2 style="margin: 0 0 10px 0; font-family: 'Bakbak One', sans-serif;">⚠️ JavaScript Required</h2>
+        <p style="margin: 0; font-family: 'Geom', sans-serif;">Please enable JavaScript to use KeepMeaning</p>
       </div>
     </noscript>
     
